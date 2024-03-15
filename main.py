@@ -1,8 +1,6 @@
-from flask import Flask
-from flask import jsonify, request
+from flask import Flask, jsonify, request
 from config import config
-from models import db
-from models import User
+from models import db, User
 import redis
 
 # Create a Redis client
@@ -30,9 +28,9 @@ def cache_response(timeout=300):
 
     return decorator
 
-def create_app(enviroment):
+def create_app(environment):
     app = Flask(__name__)
-    app.config.from_object(enviroment)
+    app.config.from_object(environment)
     
     with app.app_context():
         db.init_app(app)
@@ -40,58 +38,62 @@ def create_app(enviroment):
         
     return app
 
-enviroment = config['development']
-app = create_app()
+environment = config['development']
+app = create_app(environment)
 
 @app.route('/api/users', methods=['GET'])
 @cache_response(timeout=3600)
 def get_users():
-    users = [ user.json() for user in User.query.all() ] 
-    return jsonify({'users': users })
+    users = [user.json() for user in User.query.all()]
+    return jsonify({'users': users})
 
 @app.route('/api/users/<id>', methods=['GET'])
 @cache_response(timeout=3600)
 def get_user(id):
     user = User.query.filter_by(id=id).first()
     if user is None:
-        return jsonify({'message': 'User does not exists'}), 404
+        return jsonify({'message': 'User does not exist'}), 404
 
-    return jsonify({'user': user.json() })
+    return jsonify({'user': user.json()})
 
-@app.route('api/users/', methods=['POST'])
-def create_users():
+@app.route('/api/users/', methods=['POST'])
+def create_user():
     json = request.get_json(force=True)
     
     if json.get('username') is None:
-        return jsonify({'message':'Bad Request'}), 400
-    response = {'message':'sucess'}
-    return jsonify(response)
+        return jsonify({'message': 'Bad Request'}), 400
+    
+    user = User(username=json['username'])
+    db.session.add(user)
+    db.session.commit()
+    
+    return jsonify({'message': 'success'})
 
-app.route('api/users/<id>', methods=['PUT'])
+@app.route('/api/users/<id>', methods=['PUT'])
 def update_user(id):
     user = User.query.filter_by(id=id).first()
     if user is None:
-        return jsonify({'message': 'User does not exists'}), 404
+        return jsonify({'message': 'User does not exist'}), 404
 
     json = request.get_json(force=True)
     if json.get('username') is None:
         return jsonify({'message': 'Bad request'}), 400
 
     user.username = json['username']
+    db.session.commit()
 
-    user.update()
-
-    return jsonify({'user': user.json() })
+    return jsonify({'user': user.json()})
 
 @app.route('/api/users/<id>', methods=['DELETE'])
 def delete_user(id):
     user = User.query.filter_by(id=id).first()
     if user is None:
-        return jsonify({'message': 'User does not exists'}), 404
+        return jsonify({'message': 'User does not exist'}), 404
 
-    user.delete()
+    db.session.delete(user)
+    db.session.commit()
 
-    return jsonify({'user': user.json() })
+    return jsonify({'user': user.json()})
 
 if __name__ == '__main__':
     app.run(debug=True)
