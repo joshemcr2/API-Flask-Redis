@@ -1,5 +1,5 @@
 from flask import Flask
-from flask import jsonify
+from flask import jsonify, request
 from config import config
 from models import db
 from models import User
@@ -43,13 +43,13 @@ def create_app(enviroment):
 enviroment = config['development']
 app = create_app()
 
-@app.route('/api/v1/users', methods=['GET'])
+@app.route('/api/users', methods=['GET'])
 @cache_response(timeout=3600)
 def get_users():
     users = [ user.json() for user in User.query.all() ] 
     return jsonify({'users': users })
 
-@app.route('/api/v1/users/<id>', methods=['GET'])
+@app.route('/api/users/<id>', methods=['GET'])
 @cache_response(timeout=3600)
 def get_user(id):
     user = User.query.filter_by(id=id).first()
@@ -83,7 +83,7 @@ def update_user(id):
 
     return jsonify({'user': user.json() })
 
-@app.route('/api/v1/users/<id>', methods=['DELETE'])
+@app.route('/api/users/<id>', methods=['DELETE'])
 def delete_user(id):
     user = User.query.filter_by(id=id).first()
     if user is None:
